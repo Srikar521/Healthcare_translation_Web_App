@@ -1,59 +1,46 @@
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, session
 import openai
 from gtts import gTTS
 from io import BytesIO
 import os
 import random
-import time
-from cryptography.fernet import Fernet
+from datetime import datetime
 
 app = Flask(__name__)
+
+# Secret key for session management (for token storage)
+app.secret_key = os.urandom(24)
 
 # Load OpenAI API key from environment variable
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
-# Generate a random key for encryption/decryption
-encryption_key = Fernet.generate_key()
-cipher = Fernet(encryption_key)
+# Generate a token for every session, updating every minute
+def generate_token():
+    return random.randint(1, 100)
 
-# Store token
-current_token = random.randint(1, 100)
-last_token_time = time.time()
-
-def update_token():
-    global current_token, last_token_time
-    current_time = time.time()
-    # Update token every 2 minutes
-    if current_time - last_token_time > 120:
-        current_token = random.randint(1, 100)
-        last_token_time = current_time
-
-# Route for homepage
 @app.route('/')
 def index():
-    # Update token
-    update_token()
-    return render_template('index.html', token=current_token)
+    # Generate a new token for the session
+    session['current_token'] = generate_token()
+    return render_template('index.html', token=session['current_token'])
 
-# Route to verify token
 @app.route('/verify-token', methods=['POST'])
 def verify_token():
+    # Retrieve the token from session
+    current_token = session.get('current_token')
+
+    if not current_token:
+        return jsonify({'error': 'No token found. Please refresh the page.'}), 400
+
+    # Get the token entered by the user
     data = request.get_json()
-    token = data.get('token')
+    user_token = data.get('token')
 
-    # Check if token matches the current token
-    if token == current_token:
-        return jsonify({'message': 'Token verified successfully'})
-    else:
-        return jsonify({'error': 'Invalid token'}), 403
+    # Check if the entered token matches the session token
+    if user_token != str(current_token):
+        return jsonify({'error': 'Invalid token. Please check the token and try again.'}), 403
 
-# Encrypt the text
-def encrypt_text(text):
-    return cipher.encrypt(text.encode()).decode()
-
-# Decrypt the text
-def decrypt_text(encrypted_text):
-    return cipher.decrypt(encrypted_text.encode()).decode()
+    return jsonify({'message': 'Token verified successfully'})
 
 @app.route('/translate', methods=['POST'])
 def translate():
@@ -62,15 +49,13 @@ def translate():
     input_language = data.get('input_language', 'en-US')
     output_language = data.get('output_language', 'en')
 
-    # Encrypt the input text for confidentiality
-    encrypted_input_text = encrypt_text(text)
-
     # Step 1: Correct potential mispronunciations or errors in the medical terms
     correction_prompt = f"""
     You are a medical language expert AI that accurately understands medical terminology.
     The user may have mispronounced or mistyped some medical terms. Please help to interpret 
     and correct any potential errors in medical terms within the following input:
-    Text: {encrypted_input_text}
+    Text: {text}
+    
     Ensure that the text is corrected in {input_language} language for optimal translation accuracy.
     """
     try:
@@ -125,12 +110,9 @@ def translate():
     except Exception as e:
         return jsonify({'error': f'Verification step failed: {str(e)}'}), 500
 
-    # Encrypt the translated text
-    encrypted_translated_text = encrypt_text(final_translated_text)
-
     return jsonify({
-        'corrected_text': decrypted_text,
-        'translated_text': encrypted_translated_text
+        'corrected_text': corrected_text,
+        'translated_text': final_translated_text
     })
 
 @app.route('/speak', methods=['POST'])
@@ -150,3 +132,4 @@ def speak():
         return send_file(audio_bytes, mimetype='audio/mpeg')
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
