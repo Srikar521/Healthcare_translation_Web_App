@@ -18,21 +18,24 @@ If the entered token is wrong , user will get a message stating that invalid tak
 
 
 Upon entering the right token, User will be granted access for the web application’s translation features as shown below.
+
 ![image](https://github.com/user-attachments/assets/f86714a3-755e-4bde-a603-940054e71bbd)
 
 
 
 Based on the requirment, select input and output languages and click on Start Speaking.
+
 ![image](https://github.com/user-attachments/assets/918b16e0-4adf-4405-ae0d-daed117a308e)
 
 
 Now the user needs to start speaking and the moment user stops speaking the app will automatically stops listening and starts convertig as shown below.
+
 ![image](https://github.com/user-attachments/assets/4a1bc7af-aebb-45b7-9b16-e80b1dc4a79b)
 
 
 And additionally the system will automatically speaks out the the translated output text for better user experience.
 
-Thus we have created and used the HealthCare Translation Web APP.
+By following the above steps User can easily use the Web Application.
 
 
 Thank you
